@@ -68,6 +68,7 @@ defmodule Samly.SPHandler do
 
   defp maybe_redirect?(%{host: host} = conn, target_url) do
     %URI{host: target_host} = URI.parse(target_url)
+
     if target_host != host do
       current_uri = URI.parse(Phoenix.Router.Helpers.url(Samly.Router, conn) <> conn.request_path)
       %URI{host: target_host} = URI.parse(target_url)
@@ -137,26 +138,45 @@ defmodule Samly.SPHandler do
     %IdpData{id: idp_id} = idp = conn.private[:samly_idp]
     %IdpData{esaml_idp_rec: _idp_rec, esaml_sp_rec: sp_rec} = idp
     sp = ensure_sp_uris_set(sp_rec, conn)
+    # TODO
+    sp = Esaml.esaml_sp(sp, trusted_fingerprints: :any)
 
     saml_encoding = conn.body_params["SAMLEncoding"]
     saml_response = conn.body_params["SAMLResponse"]
     relay_state = conn.body_params["RelayState"] |> safe_decode_www_form()
 
-    with {:ok, _payload} <- Helper.decode_idp_signout_resp(sp, saml_encoding, saml_response),
+    redirection_url = URI.decode_www_form(conn.cookies["target_url"])
+
+    with {:redirect?, :no_redirection} <- {:redirect?, maybe_redirect?(conn, redirection_url)},
+         :ok <- assert_correct_response(sp, saml_encoding, saml_response),
          ^relay_state when relay_state != nil <- get_session(conn, "relay_state"),
          ^idp_id <- get_session(conn, "idp_id"),
-         target_url when target_url != nil <- conn.cookies["target_url"] do
+         target_url when target_url != nil <- get_session(conn, "target_url") do
       conn
       |> configure_session(drop: true)
-      |> redirect(302, target_url)
+      |> redirect(303, target_url)
     else
-      error -> conn |> send_resp(403, "invalid_request #{inspect(error)}")
+      {:redirect?, conn} ->
+        conn
+
+      error ->
+        conn
+        |> send_resp(403, "invalid_request #{inspect(error)}")
     end
 
     # rescue
     #   error ->
     #     Logger.error("#{inspect error}")
     #     conn |> send_resp(500, "request_failed")
+  end
+
+  def assert_correct_response(sp, saml_encoding, saml_response) do
+    case Helper.decode_idp_signout_resp(sp, saml_encoding, saml_response) do
+      {:ok, _} -> :ok
+      # Below is the case where the user is already logged out.
+      {:error, :Requester} -> :ok
+      e -> e
+    end
   end
 
   # non-ui logout request from IDP
@@ -169,7 +189,10 @@ defmodule Samly.SPHandler do
     saml_request = conn.body_params["SAMLRequest"]
     relay_state = conn.body_params["RelayState"] |> safe_decode_www_form()
 
-    with {:ok, payload} <- Helper.decode_idp_signout_req(sp, saml_encoding, saml_request) do
+    redirection_url = URI.decode_www_form(conn.cookies["target_url"])
+
+    with {:redirect?, :no_redirection} <- {:redirect?, maybe_redirect?(conn, redirection_url)},
+         {:ok, payload} <- Helper.decode_idp_signout_req(sp, saml_encoding, saml_request) do
       Esaml.esaml_logoutreq(name: nameid, issuer: _issuer) = payload
       assertion_key = {idp_id, nameid}
 
@@ -189,6 +212,9 @@ defmodule Samly.SPHandler do
       |> configure_session(drop: true)
       |> send_saml_request(idp_signout_url, idp.use_redirect_for_req, resp_xml_frag, relay_state)
     else
+      {:redirect?, conn} ->
+        conn
+
       error ->
         Logger.error("#{inspect(error)}")
         {idp_signout_url, resp_xml_frag} = Helper.gen_idp_signout_resp(sp, idp_rec, :denied)
