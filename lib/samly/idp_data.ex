@@ -11,6 +11,7 @@ defmodule Samly.IdpData do
   @type url :: nil | binary()
 
   defstruct id: "",
+            id_key: nil,
             sp_id: "",
             base_url: nil,
             metadata_file: nil,
@@ -38,6 +39,7 @@ defmodule Samly.IdpData do
 
   @type t :: %__MODULE__{
           id: binary(),
+          id_key: nil | binary(),
           sp_id: binary(),
           base_url: nil | binary(),
           metadata_file: nil | binary(),
@@ -99,7 +101,7 @@ defmodule Samly.IdpData do
     prov_config
     |> Enum.map(fn idp_config -> load_provider(idp_config, service_providers) end)
     |> Enum.filter(fn idp_data -> idp_data.valid? end)
-    |> Enum.map(fn idp_data -> {idp_data.id, idp_data} end)
+    |> Enum.map(fn idp_data -> {idp_data.id_key || idp_data.id, idp_data} end)
     |> Enum.into(%{})
   end
 
