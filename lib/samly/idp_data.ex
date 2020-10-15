@@ -116,9 +116,9 @@ defmodule Samly.IdpData do
   end
 
   @spec save_idp_config(%IdpData{}, map()) :: %IdpData{}
-  defp save_idp_config(idp_data, %{id: id, sp_id: sp_id} = opts_map)
+  defp save_idp_config(idp_data, %{id: id, sp_id: sp_id, id_key: id_key} = opts_map)
        when is_binary(id) and is_binary(sp_id) do
-    %IdpData{idp_data | id: id, sp_id: sp_id, base_url: Map.get(opts_map, :base_url)}
+    %IdpData{idp_data | id: id, sp_id: sp_id, base_url: Map.get(opts_map, :base_url), id_key: id_key}
     |> set_metadata_file(opts_map)
     |> set_pipelines(opts_map)
     |> set_allowed_target_urls(opts_map)
