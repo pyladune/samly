@@ -366,7 +366,7 @@ defmodule Samly.IdpData do
   # @spec get_esaml_sp(%SpData{}, %IdpData{}) :: :esaml_sp
   defp get_esaml_sp(%SpData{} = sp_data, %IdpData{} = idp_data) do
     idp_id_from = Application.get_env(:samly, :idp_id_from)
-    path_segment_idp_id = if idp_id_from == :subdomain, do: nil, else: idp_data.id
+    path_segment_idp_id = if idp_id_from == :subdomain, do: nil, else: idp_data.id_key
 
     sp_entity_id =
       case sp_data.entity_id do
