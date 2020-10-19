@@ -7,7 +7,7 @@ defmodule Samly.Helper do
   @spec get_idp(binary) :: nil | IdpData.t()
   def get_idp(idp_id) do
     idps = Application.get_env(:samly, :identity_providers, %{})
-    Map.get(idps, idp_id)
+    Map.get(idps, idp_id) || (Map.values(idps) |> Enum.find(& &1.id == idp_id))
   end
 
   @spec get_metadata_uri(nil | binary, binary) :: nil | charlist
