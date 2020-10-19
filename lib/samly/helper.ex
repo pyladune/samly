@@ -4,11 +4,10 @@ defmodule Samly.Helper do
   require Samly.Esaml
   alias Samly.{Assertion, Esaml, IdpData}
 
-  @spec get_idp(binary) :: nil | IdpData.t()
+  @spec get_idp(binary, any) :: nil | IdpData.t()
   def get_idp(idp_id, conn) do
     idps = Application.get_env(:samly, :identity_providers, %{})
     Map.get(idps, idp_id) || get_with_conn(idps, idp_id, conn)
-    
   end
 
   defp get_with_conn(idps, idp_id, conn) do
