@@ -5,9 +5,28 @@ defmodule Samly.Helper do
   alias Samly.{Assertion, Esaml, IdpData}
 
   @spec get_idp(binary) :: nil | IdpData.t()
-  def get_idp(idp_id) do
+  def get_idp(idp_id, conn) do
     idps = Application.get_env(:samly, :identity_providers, %{})
-    Map.get(idps, idp_id) || (Map.values(idps) |> Enum.find(& &1.id == idp_id))
+    Map.get(idps, idp_id) || get_with_conn(idps, idp_id, conn)
+    
+  end
+
+  defp get_with_conn(idps, idp_id, conn) do
+    Map.values(idps)
+    |> Enum.filter(& &1.id == idp_id)
+    |> case do
+      [idp] -> idp
+      more_idps ->
+        referer = get_referer_host(conn)
+        Enum.find(more_idps, fn(idp) ->
+          URI.parse(idp.entity_id).host == referer
+        end)
+    end
+  end
+
+  defp get_referer_host(%{resp_headers: resp_headers}) do
+    referer = for {header, value} <- resp_headers, header == "referer", do: URI.parse(value).host
+    referer = List.first(referer)
   end
 
   @spec get_metadata_uri(nil | binary, binary) :: nil | charlist
