@@ -21,11 +21,29 @@ defmodule Samly.Helper do
           URI.parse(idp.entity_id).host == referer
         end)
     end
+    |> case do
+      nil ->
+        org_name = get_org_name(conn)
+
+        Map.values(idps)
+        |> Enum.find(fn(idp) ->
+          idp.org_name == org_name
+        end)
+      idp -> idp
+    end
   end
 
-  defp get_referer_host(%{resp_headers: resp_headers}) do
+  defp get_org_name(%{cookies: %{"target_url" => target_url}}) do
+    URI.parse(target_url).host
+    |> String.split(".")
+    |> List.first
+  end
+
+  defp get_org_name(_), do: nil
+
+  defp get_referer_host(%{resp_headers: resp_headers} = conn) do
     referer = for {header, value} <- resp_headers, header == "referer", do: URI.parse(value).host
-    referer = List.first(referer)
+    List.first(referer)
   end
 
   @spec get_metadata_uri(nil | binary, binary) :: nil | charlist
