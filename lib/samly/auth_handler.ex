@@ -142,7 +142,10 @@ defmodule Samly.AuthHandler do
         )
 
       _ ->
-        conn |> send_resp(403, "access_denied")
+        conn
+        |> put_resp_header("location", "/?error=access_denied")
+        |> put_status(301)
+        |> send_resp()
     end
 
     # rescue
