@@ -56,8 +56,14 @@ defmodule Samly.SPHandler do
     else
       {:redirect?, conn} -> conn
       {:halted, conn} -> conn
-      {:error, reason} -> conn |> send_resp(403, "access_denied #{inspect(reason)}")
-      _ -> conn |> send_resp(403, "access_denied")
+      {:error, reason} -> conn
+        |> put_resp_header("location", "/?error=access_denied")
+        |> put_status(301)
+        |> send_resp()
+       _ -> conn         
+        |> put_resp_header("location", "/?error=access_denied")
+        |> put_status(301)
+        |> send_resp()
     end
 
     # rescue
